@@ -4,6 +4,7 @@ namespace HttpServer.Enums
     {
         Root,
         Echo,
+        UserAgent,
         NotFound
     }
 }

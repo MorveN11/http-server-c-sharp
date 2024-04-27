@@ -22,6 +22,11 @@ namespace HttpServer
                 return HttpRequestPath.Root;
             }
 
+            if (path == HttpConstants.UserAgentPath)
+            {
+                return HttpRequestPath.UserAgent;
+            }
+
             if (path.StartsWith(HttpConstants.EchoPath))
             {
                 return HttpRequestPath.Echo;
@@ -74,6 +79,27 @@ namespace HttpServer
             EndConnection(socket);
         }
 
+        private string getUserAgent(string request)
+        {
+            return request
+                .Split("\r\n")
+                .Where(x => x.StartsWith("User-Agent"))
+                .FirstOrDefault("")
+                .Split(" ")[1];
+        }
+
+        private async Task ProcessUserAgentResponse(Socket socket, string request)
+        {
+            var userAgent = getUserAgent(request);
+            var response = String.Format(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {0}\r\n\r\n{1}",
+                userAgent.Length,
+                userAgent
+            );
+            await SendResponse(socket, response);
+            EndConnection(socket);
+        }
+
         private async Task ProcessNotFoundResponse(Socket socket)
         {
             var response = "HTTP/1.1 404 Not Found\r\n\r\n";
@@ -97,6 +123,9 @@ namespace HttpServer
                         break;
                     case HttpRequestPath.Echo:
                         await ProcessEchoResponse(socket, GetPath(request));
+                        break;
+                    case HttpRequestPath.UserAgent:
+                        await ProcessUserAgentResponse(socket, request);
                         break;
                     case HttpRequestPath.NotFound:
                         await ProcessNotFoundResponse(socket);
