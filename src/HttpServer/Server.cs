@@ -9,6 +9,7 @@ namespace HttpServer
     public class Server
     {
         private TcpListener server = new TcpListener(IPAddress.Any, HttpConstants.HttpPort);
+        private String fileDirectory = Directory.GetCurrentDirectory();
 
         private string GetPath(string request)
         {
@@ -30,6 +31,11 @@ namespace HttpServer
             if (path.StartsWith(HttpConstants.EchoPath))
             {
                 return HttpRequestPath.Echo;
+            }
+
+            if (path.StartsWith(HttpConstants.FilesPath))
+            {
+                return HttpRequestPath.Files;
             }
 
             return HttpRequestPath.NotFound;
@@ -79,6 +85,29 @@ namespace HttpServer
             EndConnection(socket);
         }
 
+        private String GetFilePath(String path)
+        {
+            return path.Substring(HttpConstants.FilesPath.Length);
+        }
+
+        private async Task ProcessFilesResponse(Socket socket, string path)
+        {
+            var file = GetFilePath(path);
+            var filePath = Path.Combine(fileDirectory, file);
+            if (!File.Exists(filePath))
+            {
+                await ProcessNotFoundResponse(socket);
+                return;
+            }
+            var content = File.ReadAllText(filePath);
+            var response = String.Format(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\n\r\n{0}",
+                content
+            );
+            await SendResponse(socket, response);
+            EndConnection(socket);
+        }
+
         private string getUserAgent(string request)
         {
             return request
@@ -119,6 +148,9 @@ namespace HttpServer
                 case HttpRequestPath.Echo:
                     await ProcessEchoResponse(socket, path);
                     break;
+                case HttpRequestPath.Files:
+                    await ProcessFilesResponse(socket, path);
+                    break;
                 case HttpRequestPath.UserAgent:
                     await ProcessUserAgentResponse(socket, request);
                     break;
@@ -126,6 +158,16 @@ namespace HttpServer
                     await ProcessNotFoundResponse(socket);
                     break;
             }
+        }
+
+        private void SetFileDirectory(string[] args)
+        {
+            if (args.Length < 2)
+            {
+                return;
+            }
+            var index = Array.IndexOf(args, "--directory");
+            this.fileDirectory = args[index + 1];
         }
 
         public async Task Start()
@@ -141,7 +183,9 @@ namespace HttpServer
 
         static void Main(string[] args)
         {
-            new Server().Start().Wait();
+            var server = new Server();
+            server.SetFileDirectory(args);
+            server.Start().Wait();
         }
     }
 }

@@ -5,6 +5,7 @@ namespace HttpServer.Constants
         public const int HttpPort = 4221;
         public const string RootPath = "/";
         public const string EchoPath = "/echo/";
+        public const string FilesPath = "/files/";
         public const string UserAgentPath = "/user-agent";
     }
 }
