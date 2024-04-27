@@ -107,6 +107,27 @@ namespace HttpServer
             EndConnection(socket);
         }
 
+        private async Task HandleConnection(Socket socket)
+        {
+            var request = await ProcessRequest(socket);
+            var path = GetPath(request);
+            switch (GetRequestPath(path))
+            {
+                case HttpRequestPath.Root:
+                    await ProcessOkResponse(socket);
+                    break;
+                case HttpRequestPath.Echo:
+                    await ProcessEchoResponse(socket, path);
+                    break;
+                case HttpRequestPath.UserAgent:
+                    await ProcessUserAgentResponse(socket, request);
+                    break;
+                case HttpRequestPath.NotFound:
+                    await ProcessNotFoundResponse(socket);
+                    break;
+            }
+        }
+
         public async Task Start()
         {
             server.Start();
@@ -114,23 +135,7 @@ namespace HttpServer
             while (true)
             {
                 var socket = await server.AcceptSocketAsync();
-                var request = await ProcessRequest(socket);
-                var path = GetRequestPath(GetPath(request));
-                switch (path)
-                {
-                    case HttpRequestPath.Root:
-                        await ProcessOkResponse(socket);
-                        break;
-                    case HttpRequestPath.Echo:
-                        await ProcessEchoResponse(socket, GetPath(request));
-                        break;
-                    case HttpRequestPath.UserAgent:
-                        await ProcessUserAgentResponse(socket, request);
-                        break;
-                    case HttpRequestPath.NotFound:
-                        await ProcessNotFoundResponse(socket);
-                        break;
-                }
+                _ = Task.Run(() => HandleConnection(socket));
             }
         }
 
