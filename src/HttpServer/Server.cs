@@ -101,7 +101,8 @@ namespace HttpServer
             }
             var content = File.ReadAllText(filePath);
             var response = String.Format(
-                "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\n\r\n{0}",
+                "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {0}\r\n\r\n{1}",
+                content.Length,
                 content
             );
             await SendResponse(socket, response);
