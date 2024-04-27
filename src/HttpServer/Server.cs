@@ -16,6 +16,31 @@ namespace HttpServer
             return request.Split("\r\n")[0].Split(' ')[1];
         }
 
+        private HttpRequestType GetRequestType(string request)
+        {
+            var type = request.Split("\r\n")[0].Split(' ')[0];
+            switch (type)
+            {
+                case "GET":
+                    return HttpRequestType.Get;
+                case "POST":
+                    return HttpRequestType.Post;
+                case "PATCH":
+                    return HttpRequestType.Patch;
+                case "PUT":
+                    return HttpRequestType.Put;
+                case "DELETE":
+                    return HttpRequestType.Delete;
+                default:
+                    return HttpRequestType.Get;
+            }
+        }
+
+        private String getRequestBody(string request)
+        {
+            return request.Split("\r\n\r\n")[1];
+        }
+
         private HttpRequestPath GetRequestPath(string path)
         {
             if (path == HttpConstants.RootPath)
@@ -90,10 +115,15 @@ namespace HttpServer
             return path.Substring(HttpConstants.FilesPath.Length);
         }
 
-        private async Task ProcessFilesResponse(Socket socket, string path)
+        private async Task ProcessPostFilesResponse(Socket socket, string filePath, string body)
         {
-            var file = GetFilePath(path);
-            var filePath = Path.Combine(fileDirectory, file);
+            File.WriteAllText(filePath, body);
+            var response = "HTTP/1.1 201 CREATED\r\n\r\n";
+            await SendResponse(socket, response);
+        }
+
+        private async Task ProcessGetFilesResponse(Socket socket, string filePath)
+        {
             if (!File.Exists(filePath))
             {
                 await ProcessNotFoundResponse(socket);
@@ -106,6 +136,29 @@ namespace HttpServer
                 content
             );
             await SendResponse(socket, response);
+        }
+
+        private async Task ProcessFilesResponse(
+            Socket socket,
+            string path,
+            HttpRequestType type,
+            string body
+        )
+        {
+            var file = GetFilePath(path);
+            var filePath = Path.Combine(fileDirectory, file);
+            switch (type)
+            {
+                case HttpRequestType.Get:
+                    await ProcessGetFilesResponse(socket, filePath);
+                    break;
+                case HttpRequestType.Post:
+                    await ProcessPostFilesResponse(socket, filePath, body);
+                    break;
+                default:
+                    await ProcessNotFoundResponse(socket);
+                    break;
+            }
             EndConnection(socket);
         }
 
@@ -141,6 +194,8 @@ namespace HttpServer
         {
             var request = await ProcessRequest(socket);
             var path = GetPath(request);
+            var type = GetRequestType(request);
+            var body = getRequestBody(request);
             switch (GetRequestPath(path))
             {
                 case HttpRequestPath.Root:
@@ -150,7 +205,7 @@ namespace HttpServer
                     await ProcessEchoResponse(socket, path);
                     break;
                 case HttpRequestPath.Files:
-                    await ProcessFilesResponse(socket, path);
+                    await ProcessFilesResponse(socket, path, type, body);
                     break;
                 case HttpRequestPath.UserAgent:
                     await ProcessUserAgentResponse(socket, request);
