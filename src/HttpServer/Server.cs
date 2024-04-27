@@ -59,7 +59,7 @@ namespace HttpServer
 
         private String GetEcho(String path)
         {
-            return path.Split('/')[2];
+            return path.Substring(HttpConstants.EchoPath.Length);
         }
 
         private async Task ProcessEchoResponse(Socket socket, string path)
